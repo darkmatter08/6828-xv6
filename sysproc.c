@@ -91,8 +91,7 @@ sys_uptime(void)
 }
 
 int sys_date(void) {
-  struct rtcdate* ptr;// = *((struct rtcdate**) ptr);
-  // char** ptr_ptr = (char**) malloc(sizeof(char**)); 
+  struct rtcdate* ptr;
   if(argptr(0, ((char**)(&ptr)), sizeof(struct rtcdate*))) {
     return -1;
   }
