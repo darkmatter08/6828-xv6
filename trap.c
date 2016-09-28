@@ -90,37 +90,48 @@ trap(struct trapframe *tf)
       panic("trap");
     }
 
-    // attempt to alloc the page
-    uint faulting_addr = rcr2();
-    uint pg_start_boundary = PGROUNDDOWN(faulting_addr);
-    // get some physical memory, in the form of a virtual addr in
-    // the kernel space of virutal addresses.
-    char* mem = kalloc();
-    if(mem == 0){
-      cprintf("kalloc() dynamic allocation failed!\n");
-      // deallocuvm(pgdir, newsz, oldsz);
-      // In user space, assume process misbehaved.
-      cprintf("pid %d %s: trap %d err %d on cpu %d "
-              "eip 0x%x addr 0x%x--kill proc\n",
-              proc->pid, proc->name, tf->trapno, tf->err, cpunum(), tf->eip,
-              rcr2());
-      proc->killed = 1;
-      return; // return code in eax
-    }
-    memset(mem, 0, PGSIZE);
-    // now map V2P(mem) starting at the pg_start_boundary (VA) with some permissions
-    if(mappages(proc->pgdir, (char*)pg_start_boundary, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
-      cprintf("allocuvm out of memory (2)\n");
-      // deallocuvm(pgdir, newsz, oldsz);
-      kfree(mem);
+    if (tf->trapno == T_PGFLT) {
+      // attempt to alloc the page
+      uint faulting_addr = rcr2();
+      uint pg_start_boundary = PGROUNDDOWN(faulting_addr);
+      // get some physical memory, in the form of a virtual addr in
+      // the kernel space of virutal addresses.
+      char* mem = kalloc();
+      if(mem == 0){
+        cprintf("kalloc() dynamic allocation failed!\n");
+        // deallocuvm(pgdir, newsz, oldsz);
+        // In user space, assume process misbehaved.
+        cprintf("pid %d %s: trap %d err %d on cpu %d "
+                "eip 0x%x addr 0x%x--kill proc\n",
+                proc->pid, proc->name, tf->trapno, tf->err, cpunum(), tf->eip,
+                rcr2());
+        proc->killed = 1;
+        return; // return code in eax
+      }
+      memset(mem, 0, PGSIZE);
+      // now map V2P(mem) starting at the pg_start_boundary (VA) with some permissions
+      if(mappages(proc->pgdir, (char*)pg_start_boundary, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
+        cprintf("allocuvm out of memory (2)\n");
+        // deallocuvm(pgdir, newsz, oldsz);
+        kfree(mem);
 
-      // In user space, assume process misbehaved.
+        // In user space, assume process misbehaved.
+        cprintf("pid %d %s: trap %d err %d on cpu %d "
+                "eip 0x%x addr 0x%x--kill proc\n",
+                proc->pid, proc->name, tf->trapno, tf->err, cpunum(), tf->eip,
+                rcr2());
+        proc->killed = 1;
+        return;
+      }
+    }
+    else {
+      // some other weird fault has occured. 
+      cprintf("unhandled fault\n");
       cprintf("pid %d %s: trap %d err %d on cpu %d "
-              "eip 0x%x addr 0x%x--kill proc\n",
-              proc->pid, proc->name, tf->trapno, tf->err, cpunum(), tf->eip,
-              rcr2());
+                "eip 0x%x addr 0x%x--kill proc\n",
+                proc->pid, proc->name, tf->trapno, tf->err, cpunum(), tf->eip,
+                rcr2());
       proc->killed = 1;
-      return;
     }
   }
 
