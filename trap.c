@@ -56,6 +56,36 @@ trap(struct trapframe *tf)
       ticks++;
       wakeup(&ticks);
       release(&tickslock);
+      if (proc && (tf->cs & 3) == 3) {
+        if (ticks - proc->alarmticks >= 10) {
+          if(proc->alarmhandler != (void*) 0x0) {
+            // before calling proc->alarmhandler, update proc->alarmticks
+            // to the current value.
+            proc->alarmticks = ticks;
+
+            // cannot directly call!
+            // executes with kernel priviliges!
+            // proc->alarmhandler();
+
+            // I believe the correct solution involves changing
+            // proc->tf-> eip to point to the function stored in
+            // proc->alarmhandler. We may also need to manually create
+            // some space for it on the stack.
+            // Eventually we'd want to save the registers as well.
+            // This is really the same idea as creating a new process
+            // and switching to it but instead we're doing it inside of a
+            // trap frame.
+            // save current eip from tf onto stack
+            *(uint*)(proc->tf->esp) = proc->tf->eip;
+            proc->tf->esp -= 4;
+            // change current eip to alarmhandler.
+            proc->tf->eip = (uint) proc->alarmhandler;
+            // let code run and return.
+            // What about switching back? restoring the eip?
+            // Seems to work without that change.
+          }
+        }
+      }
     }
     lapiceoi();
     break;

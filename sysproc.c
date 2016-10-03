@@ -102,3 +102,19 @@ int sys_date(void) {
   }
   return -1;
 }
+
+// 2 arguments, int tick, void (*handler)()
+int
+sys_alarm(void) {
+  int tick;
+  void (*callback)();
+  if (argint(0, &tick)) {
+    return -1;
+  }
+  if (argptr(1, (char**)&callback, 1)) {
+    return -1;
+  }
+  proc->alarmticks = ticks;
+  proc->alarmhandler = callback;
+  return 0;
+}
